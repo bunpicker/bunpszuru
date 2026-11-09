@@ -9,6 +9,9 @@ def get_mime_type(content: bytes) -> str:
     if content[0:3] in (b"CWS", b"FWS", b"ZWS"):
         return "application/x-shockwave-flash"
 
+    if content[0:5] == b"%PDF-":
+        return "application/pdf"
+
     if content[0:3] == b"\xFF\xD8\xFF":
         return "image/jpeg"
 
@@ -48,6 +51,7 @@ def get_mime_type(content: bytes) -> str:
 def get_extension(mime_type: str) -> Optional[str]:
     extension_map = {
         "application/x-shockwave-flash": "swf",
+        "application/pdf": "pdf",
         "image/gif": "gif",
         "image/jpeg": "jpg",
         "image/png": "png",

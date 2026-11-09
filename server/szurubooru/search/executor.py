@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, Union
 
 import sqlalchemy as sa
 
@@ -95,7 +95,30 @@ class Executor:
 
         key = (id(self.config), hash(search_query), offset, limit)
         if cache.has(key):
-            return cache.get(key)
+            count, entity_type, identities = cache.get(key)
+            if entity_type is None:
+                return count, []
+            primary_key = sa.inspect(entity_type).primary_key
+            query = self.config.create_filter_query(
+                disable_eager_loads
+            ).options(sa.orm.lazyload("*"))
+            if len(primary_key) == 1:
+                query = query.filter(
+                    primary_key[0].in_([identity[0] for identity in identities])
+                )
+            else:
+                query = query.filter(
+                    sa.tuple_(*primary_key).in_(identities)
+                )
+            entities = query.all()
+            entities_by_identity = {
+                sa.inspect(entity).identity: entity for entity in entities
+            }
+            return count, [
+                entities_by_identity[identity]
+                for identity in identities
+                if identity in entities_by_identity
+            ]
 
         filter_query = self.config.create_filter_query(disable_eager_loads)
         filter_query = filter_query.options(sa.orm.lazyload("*"))
@@ -110,9 +133,14 @@ class Executor:
         ).order_by(None)
         count = db.session.execute(count_statement).scalar()
 
-        ret = (count, entities)
-        cache.put(key, ret)
-        return ret
+        entity_type: Optional[Type[model.Base]] = (
+            type(entities[0]) if entities else None
+        )
+        identities: List[Tuple[Any, ...]] = [
+            sa.inspect(entity).identity for entity in entities
+        ]
+        cache.put(key, (count, entity_type, identities))
+        return count, entities
 
     def execute_and_serialize(
         self,

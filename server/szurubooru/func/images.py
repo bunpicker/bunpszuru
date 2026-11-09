@@ -1,9 +1,11 @@
 import json
 import logging
 import math
+import os
 import re
 import shlex
 import subprocess
+import tempfile
 from io import BytesIO
 from typing import List
 
@@ -15,6 +17,64 @@ from szurubooru import errors
 from szurubooru.func import mime, util
 
 logger = logging.getLogger(__name__)
+
+
+def render_pdf_page(content: bytes, max_size: int) -> bytes:
+    with util.create_temp_file(suffix=".pdf") as pdf_file:
+        pdf_file.write(content)
+        pdf_file.flush()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = os.path.join(temp_dir, "page")
+            cli = [
+                "pdftoppm",
+                "-f",
+                "1",
+                "-l",
+                "1",
+                "-singlefile",
+                "-jpeg",
+                "-scale-to",
+                str(max_size),
+                pdf_file.name,
+                output_path,
+            ]
+            try:
+                proc = subprocess.Popen(
+                    cli,
+                    stdout=subprocess.PIPE,
+                    stdin=subprocess.DEVNULL,
+                    stderr=subprocess.PIPE,
+                )
+            except OSError as ex:
+                raise errors.ProcessingError(
+                    "Unable to run pdftoppm for PDF thumbnail generation."
+                ) from ex
+            try:
+                _, err = proc.communicate(timeout=30)
+            except subprocess.TimeoutExpired as ex:
+                proc.kill()
+                proc.communicate()
+                raise errors.ProcessingError(
+                    "Timed out while rendering the first page of the PDF."
+                ) from ex
+            if proc.returncode != 0:
+                logger.warning(
+                    "Failed to render PDF page (cli=%r, err=%r)",
+                    " ".join(shlex.quote(arg) for arg in cli),
+                    err,
+                )
+                raise errors.ProcessingError(
+                    "Error while rendering the first page of the PDF."
+                )
+
+            if not os.path.isfile(output_path + ".jpg"):
+                raise errors.ProcessingError(
+                    "PDF thumbnail renderer produced no output."
+                )
+
+            with open(output_path + ".jpg", "rb") as page_file:
+                return page_file.read()
 
 
 def convert_heif_to_png(content: bytes) -> bytes:

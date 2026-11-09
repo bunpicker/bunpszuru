@@ -16,6 +16,12 @@
                 </a>
             </div>
 
+        <% } else if (ctx.uploadable.type === 'pdf') { %>
+
+            <div class='thumbnail pdf-thumbnail' aria-label='PDF document'>
+                <i class='fa fa-file-pdf-o' aria-hidden='true'></i>
+            </div>
+
         <% } else { %>
 
             <%= ctx.makeThumbnail(null) %>

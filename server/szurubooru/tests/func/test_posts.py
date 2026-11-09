@@ -513,6 +513,73 @@ def test_update_post_content_for_new_post(
             assert db.session.query(model.PostSignature).count() == 0
 
 
+def test_update_post_content_for_pdf(post_factory):
+    post = post_factory()
+    with patch("szurubooru.func.util.get_sha1", return_value="crc"), patch(
+        "szurubooru.func.util.get_md5", return_value="md5"
+    ):
+        posts.update_post_content(post, b"%PDF-1.7\n")
+
+    assert post.mime_type == "application/pdf"
+    assert post.type == model.Post.TYPE_PDF
+    assert post.canvas_width is None
+    assert post.canvas_height is None
+
+
+def test_generate_pdf_post_thumbnail(
+    tmpdir, config_injector, post_factory
+):
+    stream = b"BT /F1 24 Tf 50 200 Td (PDF thumbnail) Tj ET"
+    pdf_objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 400] "
+        b"/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
+        b"<< /Length %d >>\nstream\n" % len(stream)
+        + stream
+        + b"\nendstream",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    ]
+    content = b"%PDF-1.4\n"
+    offsets = []
+    for object_id, pdf_object in enumerate(pdf_objects, 1):
+        offsets.append(len(content))
+        content += (
+            str(object_id).encode("ascii")
+            + b" 0 obj\n"
+            + pdf_object
+            + b"\nendobj\n"
+        )
+    xref_offset = len(content)
+    content += b"xref\n0 6\n0000000000 65535 f \n"
+    content += b"".join(
+        ("%010d 00000 n \n" % offset).encode("ascii")
+        for offset in offsets
+    )
+    content += (
+        b"trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"
+        + str(xref_offset).encode("ascii")
+        + b"\n%%EOF\n"
+    )
+
+    config_injector(
+        {
+            "data_dir": str(tmpdir.mkdir("data")),
+            "thumbnails": {"post_width": 300, "post_height": 300},
+            "secret": "test",
+            "allow_broken_uploads": False,
+        }
+    )
+    post = post_factory(id=1)
+    db.session.add(post)
+    posts.update_post_content(post, content)
+    db.session.flush()
+
+    thumbnail = files.get(posts.get_post_thumbnail_path(post))
+    assert thumbnail != posts.EMPTY_PIXEL
+    assert images.Image(thumbnail).width > 1
+
+
 def test_update_post_content_to_existing_content(
     tmpdir, config_injector, post_factory, read_asset
 ):

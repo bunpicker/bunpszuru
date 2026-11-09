@@ -245,6 +245,14 @@ function bundleBinaryAssets() {
     fs.copyFileSync('./img/favicon.png', './public/img/favicon.png');
     console.info('Copied images');
 
+    const pdfWorker = './public/js/pdf.worker.min.js';
+    fs.copyFileSync(
+        './node_modules/pdfjs-dist/legacy/build/pdf.worker.min.js',
+        pdfWorker);
+    if (process.argv.includes('--gzip')) {
+        gzipFile(pdfWorker);
+    }
+
     fs.copyFileSync('./fonts/open_sans.woff2', './public/fonts/open_sans.woff2')
     for (let file of glob.sync('./node_modules/font-awesome/fonts/*.*')) {
         if (fs.lstatSync(file).isDirectory()) {

@@ -1,7 +1,3 @@
-## Example Docker Compose configuration
-##
-## Use this as a template to set up docker compose, or as guide to set up other
-## orchestration services
 services:
 
   server:
@@ -9,20 +5,12 @@ services:
     depends_on:
       - sql
     environment:
-      ## These should be the names of the dependent containers listed below,
-      ## or FQDNs/IP addresses if these services are running outside of Docker
       POSTGRES_HOST: sql
-      ## Credentials for database:
-      POSTGRES_USER:
-      POSTGRES_PASSWORD:
-      ## Commented Values are Default:
-      #POSTGRES_DB: defaults to same as POSTGRES_USER
-      #POSTGRES_PORT: 5432
-      #LOG_SQL: 0 (1 for verbose SQL logs)
-      THREADS:
+      POSTGRES_USER: szuru
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
     volumes:
-      - "${MOUNT_DATA}:/data"
-      - "./server/config.yaml:/opt/app/config.yaml"
+      - "D:/szuru_master/data:/data"
+      - "D:/szuru/config.yaml:/opt/app/config.yaml"
 
   client:
     image: szurubooru/client:latest
@@ -30,17 +18,28 @@ services:
       - server
     environment:
       BACKEND_HOST: server
-      BASE_URL:
+      # Set BASE_URL to your public domain so frontend links render properly
+      BASE_URL: "${BASE_URL:?Set BASE_URL in .env}"
     volumes:
-      - "${MOUNT_DATA}:/data:ro"
+      - "D:/szuru_master/data:/data:ro"
     ports:
-      - "${PORT}:80"
+      - "8080:80"
 
   sql:
     image: postgres:11-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER:
-      POSTGRES_PASSWORD:
+      POSTGRES_USER: szuru
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
     volumes:
-      - "${MOUNT_SQL}:/var/lib/postgresql/data"
+      - "D:/szuru_master/db:/var/lib/postgresql/data"
+
+  # --- CLOUDFLARE TUNNEL SERVICE ---
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: "${TUNNEL_TOKEN:?Set TUNNEL_TOKEN in .env}"
+    depends_on:
+      - client

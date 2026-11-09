@@ -31,6 +31,10 @@ def test_get_mime_type_for_empty_file():
     assert mime.get_mime_type(b"") == "application/octet-stream"
 
 
+def test_get_mime_type_for_pdf():
+    assert mime.get_mime_type(b"%PDF-1.7\n") == "application/pdf"
+
+
 @pytest.mark.parametrize(
     "mime_type,expected_extension",
     [
@@ -38,6 +42,7 @@ def test_get_mime_type_for_empty_file():
         ("video/webm", "webm"),
         ("video/quicktime", "mov"),
         ("application/x-shockwave-flash", "swf"),
+        ("application/pdf", "pdf"),
         ("image/png", "png"),
         ("image/jpeg", "jpg"),
         ("image/gif", "gif"),

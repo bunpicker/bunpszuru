@@ -12,6 +12,7 @@ function _mimeTypeToPostType(mimeType) {
     return (
         {
             "application/x-shockwave-flash": "flash",
+            "application/pdf": "pdf",
             "image/gif": "image",
             "image/jpeg": "image",
             "image/png": "image",
@@ -112,6 +113,7 @@ class Url extends Uploadable {
     get mimeType() {
         let mime = {
             swf: "application/x-shockwave-flash",
+            pdf: "application/pdf",
             jpg: "image/jpeg",
             png: "image/png",
             gif: "image/gif",

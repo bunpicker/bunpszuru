@@ -3,6 +3,7 @@
 const settings = require("../models/settings.js");
 const views = require("../util/views.js");
 const optimizedResize = require("../util/optimized_resize.js");
+const PdfViewerControl = require("./pdf_viewer_control.js");
 
 class PostContentControl {
     constructor(hostNode, post, viewportSizeCalculator, fitFunctionOverride) {
@@ -93,12 +94,19 @@ class PostContentControl {
     }
 
     _resize(width, height) {
+        if (this._post.type === "pdf") {
+            width = this._viewportWidth;
+            height = this._viewportHeight;
+        }
         const resizeListenerNodes = [this._postContentNode].concat(
             ...this._postContentNode.querySelectorAll(".resize-listener")
         );
         for (let node of resizeListenerNodes) {
             node.style.width = width + "px";
             node.style.height = height + "px";
+        }
+        if (this._pdfViewerControl) {
+            this._pdfViewerControl.resize();
         }
     }
 
@@ -139,6 +147,10 @@ class PostContentControl {
     }
 
     _reinstall() {
+        if (this._pdfViewerControl) {
+            this._pdfViewerControl.destroy();
+            this._pdfViewerControl = null;
+        }
         const newNode = this._template({
             post: this._post,
             autoplay: settings.get().autoplayVideos,
@@ -152,11 +164,19 @@ class PostContentControl {
             this._hostNode.appendChild(newNode);
         }
         this._postContentNode = newNode;
+        if (this._post.type === "pdf") {
+            this._pdfViewerControl = new PdfViewerControl(
+                newNode.querySelector(".pdf-viewer")
+            );
+        }
         this._refreshSize();
     }
 
     _uninstall() {
         optimizedResize.remove(() => this._refreshSize());
+        if (this._pdfViewerControl) {
+            this._pdfViewerControl.destroy();
+        }
     }
 }
 

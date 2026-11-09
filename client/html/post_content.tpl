@@ -27,6 +27,13 @@
             'Your browser doesn\'t support HTML5 videos.')
         %>
 
+    <% } else if (ctx.post.type === 'pdf') { %>
+
+        <div class='resize-listener pdf-viewer'
+            data-pdf-url='<%- ctx.post.contentUrl %>'
+            aria-label='PDF document viewer'>
+        </div>
+
     <% } else { console.log(new Error('Unknown post type')); } %>
 
     <div class='post-overlay resize-listener'>

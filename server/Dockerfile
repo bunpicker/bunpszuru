@@ -14,6 +14,7 @@ RUN apk --no-cache add \
         libavif \
         libavif-dev \
         ffmpeg \
+        poppler-utils \
         # from requirements.txt: \
         py3-yaml \
         py3-psycopg2 \

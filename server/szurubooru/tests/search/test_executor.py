@@ -2,7 +2,7 @@ import unittest.mock
 
 import pytest
 
-from szurubooru import search
+from szurubooru import db, model, search
 from szurubooru.func import cache
 
 
@@ -12,9 +12,31 @@ def test_retrieving_from_cache():
         "szurubooru.func.cache.get"
     ):
         cache.has.side_effect = lambda *args: True
+        cache.get.return_value = (0, None, [])
         executor = search.Executor(config)
-        executor.execute("test:whatever", 1, 10)
+        assert executor.execute("test:whatever", 1, 10) == (0, [])
         assert cache.get.called
+
+
+def test_reloading_cached_entities_in_current_session(post_factory):
+    cache.purge()
+    try:
+        post = post_factory(id=1)
+        db.session.add(post)
+        db.session.flush()
+        executor = search.Executor(search.configs.PostSearchConfig())
+
+        first_count, first_posts = executor.execute("id:1", 0, 10)
+        db.session.expunge_all()
+        second_count, second_posts = executor.execute("id:1", 0, 10)
+
+        assert first_count == second_count == 1
+        assert [post.post_id for post in first_posts] == [1]
+        assert [post.post_id for post in second_posts] == [1]
+        assert second_posts[0] is not first_posts[0]
+        assert db.session.object_session(second_posts[0]) is db.session
+    finally:
+        cache.purge()
 
 
 def test_putting_equivalent_queries_into_cache():

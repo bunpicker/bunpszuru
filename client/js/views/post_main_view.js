@@ -5,7 +5,6 @@ const router = require("../router.js");
 const views = require("../util/views.js");
 const uri = require("../util/uri.js");
 const keyboard = require("../util/keyboard.js");
-const Touch = require("../util/touch.js");
 const PostContentControl = require("../controls/post_content_control.js");
 const PostNotesOverlayControl = require("../controls/post_notes_overlay_control.js");
 const PostReadonlySidebarControl = require("../controls/post_readonly_sidebar_control.js");
@@ -50,7 +49,11 @@ class PostMainView {
             ctx.post
         );
 
-        if (ctx.post.type === "video" || ctx.post.type === "flash") {
+        if (
+            ctx.post.type === "video" ||
+            ctx.post.type === "flash" ||
+            ctx.post.type === "pdf"
+        ) {
             this._postContentControl.disableOverlay();
         }
 
@@ -101,19 +104,6 @@ class PostMainView {
             }
         });
 
-        new Touch(
-            postContainerNode,
-            () => {
-                if (!ctx.editMode) {
-                    showPreviousImage();
-                }
-            },
-            () => {
-                if (!ctx.editMode) {
-                    showNextImage();
-                }
-            }
-        );
     }
 
     _installSidebar(ctx) {

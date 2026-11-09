@@ -89,6 +89,7 @@ TYPE_MAP = {
     model.Post.TYPE_ANIMATION: "animation",
     model.Post.TYPE_VIDEO: "video",
     model.Post.TYPE_FLASH: "flash",
+    model.Post.TYPE_PDF: "pdf",
 }
 
 FLAG_MAP = {
@@ -613,6 +614,8 @@ def update_post_content(post: model.Post, content: Optional[bytes]) -> None:
     post.mime_type = mime.get_mime_type(content)
     if mime.is_flash(post.mime_type):
         post.type = model.Post.TYPE_FLASH
+    elif post.mime_type == "application/pdf":
+        post.type = model.Post.TYPE_PDF
     elif mime.is_image(post.mime_type):
         update_signature = True
         if mime.is_animated_gif(content):
@@ -646,17 +649,21 @@ def update_post_content(post: model.Post, content: Optional[bytes]) -> None:
         post.signature = generate_post_signature(post, content)
 
     post.file_size = len(content)
-    try:
-        image = images.Image(content)
-        post.canvas_width = image.width
-        post.canvas_height = image.height
-    except errors.ProcessingError as ex:
-        logger.exception(ex)
-        if not config.config["allow_broken_uploads"]:
-            raise InvalidPostContentError("Unable to process image metadata")
-        else:
-            post.canvas_width = None
-            post.canvas_height = None
+    if post.type == model.Post.TYPE_PDF:
+        post.canvas_width = None
+        post.canvas_height = None
+    else:
+        try:
+            image = images.Image(content)
+            post.canvas_width = image.width
+            post.canvas_height = image.height
+        except errors.ProcessingError as ex:
+            logger.exception(ex)
+            if not config.config["allow_broken_uploads"]:
+                raise InvalidPostContentError("Unable to process image metadata")
+            else:
+                post.canvas_width = None
+                post.canvas_height = None
     if (post.canvas_width is not None and post.canvas_width <= 0) or (
         post.canvas_height is not None and post.canvas_height <= 0
     ):
@@ -685,13 +692,24 @@ def generate_post_thumbnail(post: model.Post) -> None:
         content = files.get(get_post_content_path(post))
     try:
         assert content
+        if post.type == model.Post.TYPE_PDF:
+            max_size = max(
+                int(config.config["thumbnails"]["post_width"]),
+                int(config.config["thumbnails"]["post_height"]),
+            )
+            content = images.render_pdf_page(content, max_size)
         image = images.Image(content)
         image.resize_fill(
             int(config.config["thumbnails"]["post_width"]),
             int(config.config["thumbnails"]["post_height"]),
         )
         files.save(get_post_thumbnail_path(post), image.to_jpeg())
-    except errors.ProcessingError:
+    except errors.ProcessingError as ex:
+        logger.warning(
+            "Could not generate thumbnail for post %d: %s",
+            post.post_id,
+            ex,
+        )
         files.save(get_post_thumbnail_path(post), EMPTY_PIXEL)
 
 
