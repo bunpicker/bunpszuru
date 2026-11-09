@@ -90,8 +90,13 @@ function bundleHtml() {
         }).trim();
     }
 
+    const assetVersion = Date.now().toString(36);
     const baseHtml = readTextFile('./html/index.htm')
-        .replace('<!-- Base HTML Placeholder -->', `<base href="${baseUrl()}"/>`);
+        .replace('<!-- Base HTML Placeholder -->', `<base href="${baseUrl()}"/>`)
+        .replace(
+            /(href|src)='((?:css|js)\/(?:app|vendor)\.min\.(?:css|js))'/g,
+            `$1='$2?v=${assetVersion}'`
+        );
     fs.writeFileSync('./public/index.htm', minifyHtml(baseHtml));
 
     let compiledTemplateJs = [

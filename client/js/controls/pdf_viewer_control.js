@@ -10,6 +10,10 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 class PdfViewerControl {
     constructor(hostNode) {
         this._hostNode = hostNode;
+        this._pdfUrl = new URL(
+            hostNode.dataset.pdfUrl,
+            document.baseURI
+        ).toString();
         this._document = null;
         this._loadingTask = null;
         this._renderTask = null;
@@ -61,7 +65,7 @@ class PdfViewerControl {
         });
 
         const openLink = document.createElement("a");
-        openLink.href = this._hostNode.dataset.pdfUrl;
+        openLink.href = this._pdfUrl;
         openLink.target = "_blank";
         openLink.rel = "noopener noreferrer";
         openLink.textContent = "Open PDF";
@@ -97,12 +101,13 @@ class PdfViewerControl {
 
     _loadDocument() {
         this._loadingTask = pdfjs.getDocument({
-            url: this._hostNode.dataset.pdfUrl,
+            url: this._pdfUrl,
             rangeChunkSize: 65536,
         });
         this._loadingTask.onProgress = (progress) => {
             if (
                 !this._destroyed &&
+                !this._document &&
                 progress.total &&
                 progress.loaded < progress.total
             ) {
