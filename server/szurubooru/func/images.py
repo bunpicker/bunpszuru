@@ -9,14 +9,19 @@ import tempfile
 from io import BytesIO
 from typing import List
 
-import HeifImagePlugin
-import pillow_avif
+from pillow_heif import register_heif_opener
 from PIL import Image as PILImage
+from PIL import features
 
 from szurubooru import errors
 from szurubooru.func import mime, util
 
 logger = logging.getLogger(__name__)
+register_heif_opener()
+if not features.check("avif"):
+    # AVIF support is built into Pillow for some distros
+    # e.g. nixpkgs
+    import pillow_avif  # noqa: F401
 
 
 def render_pdf_page(content: bytes, max_size: int) -> bytes:
@@ -165,9 +170,9 @@ class Image:
                 "-f",
                 "image2",
                 "-filter_complex",
-                "overlay",
+                "[0:v][1:v]overlay[v]",
                 "-map",
-                "0:v:0",
+                "[v]",
                 "-vframes",
                 "1",
                 "-vcodec",
